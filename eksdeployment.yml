@@ -1,0 +1,33 @@
+pool:
+  name: overall
+parameters:
+- name: thingsArray
+  type: object
+  default:
+  - foo
+  - bar
+stages:
+- stage: samplebashscript
+  jobs:
+    - job: oldsscirpt
+      steps:
+        - bash: |
+             echo "hi"
+
+- ${{each thing in parameters.thingsArray}}:
+  - stage: EachMapJobs${{thing}}
+    jobs:
+      - job: new
+        steps:
+          - bash: |
+                  echo "${{thing}}"
+                  echo "${{thing.value}}"
+                  echo "${{thing.key}}"
+            displayName: Show thing
+  - stage: singleloog${{thing}}
+    jobs:
+    - job: secondjob
+      steps:
+        - bash: |
+                  echo "ho"
+          displayName: volume
