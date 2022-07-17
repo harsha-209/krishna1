@@ -1,0 +1,17 @@
+variables:
+- group: credentials
+
+
+
+
+resources:
+  repositories:
+    - repository: azuredevops123 ##[name for your repo here]
+      type: git
+      ref: testing ##[branch]
+      name: sample/azuredevops ## {projectname/reponame}
+
+stages:
+  - template: phone/harshad.yml@azuredevops123  ##[specify above name here]
+    parameters:
+      msg: wow
