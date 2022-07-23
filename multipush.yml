@@ -1,0 +1,135 @@
+pool:
+  name: overall
+
+parameters:
+- name: environmentObjects
+  type: object
+  default: 
+  - environmentName: 
+    - dev
+    - prd
+    regionAbrvs: ['westeurop']
+
+
+
+stages:
+  - stage: souce_codebuild
+    pool:
+      name: overall
+      demands:
+      - Agent.Name -equals ubuntu
+    jobs:
+    - job: mavenbuild
+      displayName: build and publish
+      steps:
+        - script: echo Hello, world!
+          displayName: 'Run a one-line script'
+        - bash: |
+              echo 'hi'
+          displayName: cmd command checking
+
+        - task: Maven@3
+          displayName: build
+          inputs:
+            mavenPomFile: 'pom.xml'
+            goals: 'install'
+            publishJUnitResults: false
+            javaHomeOption: 'JDKVersion'
+            mavenVersionOption: 'Default'
+            mavenAuthenticateFeed: false
+            effectivePomSkip: false
+            sonarQubeRunAnalysis: false
+
+
+        - task: CopyFiles@2
+          displayName: copy to artifactfolder
+          inputs:
+            SourceFolder: '$(agent.builddirectory)'
+            Contents: '**'
+            TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+        - task: PublishBuildArtifacts@1
+          displayName: pushed to azure_artifact 
+          inputs:
+            pathToPublish: $(Build.ArtifactStagingDirectory)
+            artifactName: MyBuildOutputs
+
+        - task: PostBuildCleanup@3
+          inputs:
+            disableCertCheck: true   
+
+  - stage: docker_build
+    pool:
+        name: overall
+        demands:
+        - Agent.Name -equals docker
+    jobs:
+      - job: dockerbuild
+        steps:
+          - script: echo "hi world"
+            displayName: testing
+          - bash: |
+                sudo apt install docker.io -y
+                sudo chmod 777 /var/run/docker.sock
+            displayName: installing docker   
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'MyBuildOutputs'
+              itemPattern: '**/target/**'
+              targetPath: '$(Pipeline.Workspace)'
+          #- task: DownloadBuildArtifacts@1
+          #  inputs:
+          #    buildType: 'current'
+          #    downloadType: 'single'
+          #    artifactName: 'MyBuildOutputs'
+          #    itemPattern: '**/target/**'
+          #    downloadPath: '$(agent.builddirectory)/s/'
+
+          - task: Docker@2
+            inputs:
+              repository: harshad
+              command: build
+              Dockerfile: 'Dockerfile'
+              tags: $(Build.BuildId)
+          
+          - bash: |
+                touch f1
+                ls
+
+                docker save -o imagemyfile.tar harshad:$(Build.BuildId)
+                cd $(Build.ArtifactStagingDirectory)
+                pwd
+                ls
+            displayName: tar the docker image
+          - bash: |
+                  cd $(agent.builddirectory)
+                  ls
+            displayName: checking agent directory
+          
+          - task: CopyFiles@2
+            inputs:
+              SourceFolder: '$(agent.builddirectory)/s/'
+              contents: 'imagemyfile.tar'
+              targetFolder: $(Build.ArtifactStagingDirectory)/s/
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: $(Build.ArtifactStagingDirectory)
+              artifactName: MyBuildOutputs
+          - task: PostBuildCleanup@3
+            inputs:
+              disableCertCheck: true
+
+  - ${{ each environmentObject  in parameters.environmentObjects }}: 
+    - ${{ each env  in environmentObject.environmentName }}:
+      - ${{ each regionAbrv  in environmentObject.regionAbrvs }}:    
+        - stage: docker_build_${{env}}
+          dependsOn: docker_build
+          pool:
+            name: overall
+            demands:
+              - Agent.Name -equals docker
+          jobs:
+            - job: dockerbuild
+              steps:
+                - bash: echo "hellow"
