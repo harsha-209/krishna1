@@ -1,0 +1,70 @@
+#two files
+
+Here I have a sample as reference:
+
+##1.In the template YAML file (here I name it template.yaml), write as this.
+parameters:
+- name: envs
+  type: object
+  default:
+  - QUAL
+  - PROD
+  - PREPROD
+
+stages:
+- ${{ each env in parameters.envs }}:
+  - stage: ${{ env }}
+    displayName: 'Stage ${{ env }}'
+    jobs:
+    - job: job1
+      displayName: 'Job 1'
+      steps:
+      - bash: echo "Current job is job1 in ${{ env }}"
+    
+    - job: job2
+      displayName: 'Job 2'
+      steps:
+      - bash: echo "Current job is job2 in ${{ env }}"
+In the pipeline YAML (here I name it pipeline.yaml), write as this.
+trigger:
+- main
+
+extends:
+  template: template.yaml
+Result enter image description here
+If you do not want to hardcode the value of the parameter 'envs' in template.yaml, you can write like as below.
+
+In template.yaml write as this.
+parameters:
+- name: envs
+  type: object
+  default: []
+
+stages:
+- ${{ each env in parameters.envs }}:
+  - stage: ${{ env }}
+    displayName: 'Stage ${{ env }}'
+    jobs:
+    - job: job1
+      displayName: 'Job 1'
+      steps:
+      - bash: echo "Current job is job1 in ${{ env }}"
+    
+    - job: job2
+      displayName: 'Job 2'
+      steps:
+      - bash: echo "Current job is job2 in ${{ env }}"
+###2. In pipeline.yaml write as this.
+
+trigger:
+- main
+
+stages:
+- template: template.yaml
+  parameters:
+    envs:
+    - QUAL
+    - PROD
+    - PREPROD
+
+
