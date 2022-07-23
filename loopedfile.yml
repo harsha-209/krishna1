@@ -1,0 +1,24 @@
+pool:
+  name: overall
+
+parameters:
+- name: environmentObjects
+  type: object
+  default: 
+  - environmentName: ['dev']
+    regionAbrvs: ['westeurope']
+  - environmentName: ['uat']
+    regionAbrvs: ['france', 'uk']
+
+
+
+
+stages:
+- ${{ each environmentObject  in parameters.environmentObjects }}: 
+  - ${{ each env  in environmentObject.environmentName }}:
+    - ${{ each regionAbrv  in environmentObject.regionAbrvs }}:
+      - stage: ${{env}}_${{regionAbrv}}
+        jobs:
+          - job:
+            steps:
+            - script: echo ${{ regionAbrv  }}
